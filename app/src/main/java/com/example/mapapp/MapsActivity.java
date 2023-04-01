@@ -4,6 +4,10 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
+import android.content.Context;
 import androidx.fragment.app.FragmentActivity;
 
 import android.Manifest;
@@ -23,6 +27,8 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.example.mapapp.databinding.ActivityMapsBinding;
 import com.google.android.gms.maps.model.PointOfInterest;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 
 import java.util.Locale;
 
@@ -62,7 +68,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // add marker and move the camera
         LatLng vokasiUGM = new LatLng(-7.7742371,110.3691362);
-        mMap.addMarker(new MarkerOptions().position(vokasiUGM).title("Marker di Herman Yohanes"));
+        mMap.addMarker(new MarkerOptions()
+                .position(vokasiUGM)
+                .title("Marker di Herman Yohanes")
+                .icon(BitmapFromVector(getApplicationContext(), R.drawable.baseline_flare_24)));
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(vokasiUGM, 17));
 
         // call setMapOnClick method
@@ -72,68 +81,98 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         setPoiClicked(mMap);
     }
 
-        @Override
-        public boolean onCreateOptionsMenu(Menu menu) {
-            MenuInflater inflater = getMenuInflater();
-            inflater.inflate(R.menu.map_option,menu);
-            return true;
+    private BitmapDescriptor BitmapFromVector(Context context, int vectorResId) {
+        // get a drawable.
+        Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
+
+        // set bounds to vector drawable.
+        vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
+
+        // create a bitmap for drawable which.
+        Bitmap bitmap = Bitmap.createBitmap(vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+
+        // add bitmap in canvas.
+        Canvas canvas = new Canvas(bitmap);
+
+        // draw vector drawable in canvas.
+        vectorDrawable.draw(canvas);
+
+        // return the bitmap result.
+        return BitmapDescriptorFactory.fromBitmap(bitmap);
+    }
+
+    // create menu
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.map_option,menu);
+        return true;
+    }
+
+    // change map type according to selected menu
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.normal_map:
+                mMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+                return true;
+
+            case R.id.satellite_map:
+                mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
+                return true;
+
+            case R.id.terrain_map:
+                mMap.setMapType(GoogleMap.MAP_TYPE_TERRAIN);
+                return true;
+
+            case R.id.hybrid_map:
+                mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
+                return true;
+
+            default:
+                return super.onOptionsItemSelected(item);
         }
 
-        @Override
-        public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-            switch (item.getItemId()){
-                case R.id.normal_map:
-                    mMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+    }
 
-                    return true;
-
-                case R.id.satellite_map:
-                    mMap.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
-                    return true;
-
-                case R.id.terrain_map:
-                    mMap.setMapType(GoogleMap.MAP_TYPE_TERRAIN);
-                    return true;
-
-                case R.id.hybrid_map:
-                    mMap.setMapType(GoogleMap.MAP_TYPE_HYBRID);
-                    return true;
-
-                default:
-                    return super.onOptionsItemSelected(item);
+    // add marker on long click
+    private void setMapOnClick(final GoogleMap map){
+        map.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
+            @Override
+            public void onMapLongClick(@NonNull LatLng latLng) {
+                String text = String.format(Locale.getDefault(),"Lat: %1$.5f, Long: %2.5f", latLng.latitude, latLng.longitude);
+                map.addMarker(new MarkerOptions()
+                        .position(latLng)
+                        .snippet(text)
+                        .title("Dropped pin.")
+                        .icon(BitmapFromVector(getApplicationContext(),R.drawable.baseline_flare_24_2)));
             }
+        });
+    }
 
-        }
-
-        // add marker on long click
-        private void setMapOnClick(final GoogleMap map){
-            map.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
-                @Override
-                public void onMapLongClick(@NonNull LatLng latLng) {
-                    String text = String.format(Locale.getDefault(),"Lat: %1$.5f, Long: %2.5f", latLng.latitude, latLng.longitude);
-                    map.addMarker(new MarkerOptions().position(latLng).snippet(text).title("Dropped pin."));
-                }
-            });
-        }
-
-        private void setPoiClicked(final GoogleMap map) {
-            map.setOnPoiClickListener(new GoogleMap.OnPoiClickListener() {
-                @Override
-                public void onPoiClick(@NonNull PointOfInterest pointOfInterest) {
-                    Marker poiMarker = mMap.addMarker(new MarkerOptions().position(pointOfInterest.latLng).title(pointOfInterest.name));
-                    poiMarker.showInfoWindow();
-                }
-            });
-        }
-
-        private void enableMyLocation() {
-        // check if permission granted or not, if yes: enable, if no: ask, get the result using onRequestPermissionResult method
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                mMap.setMyLocationEnabled(true);
-            }  else {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
+    // add marker on poi click
+    private void setPoiClicked(final GoogleMap map) {
+        map.setOnPoiClickListener(new GoogleMap.OnPoiClickListener() {
+            @Override
+            public void onPoiClick(@NonNull PointOfInterest pointOfInterest) {
+                Marker poiMarker = mMap.addMarker(new MarkerOptions()
+                        .position(pointOfInterest.latLng)
+                        .title(pointOfInterest.name)
+                        .icon(BitmapFromVector(getApplicationContext(), R.drawable.baseline_flare_24_3)));
+                poiMarker.showInfoWindow();
             }
+        });
+    }
+
+    // two methods below is used to ask permission about location
+    private void enableMyLocation() {
+    // check if permission granted or not, if yes: enable, if no: ask, get the result using onRequestPermissionResult method
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            mMap.setMyLocationEnabled(true);
+        }  else {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
